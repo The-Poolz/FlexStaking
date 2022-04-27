@@ -1,4 +1,4 @@
-const FlexStacking = artifacts.require("FlexStacking")
+const FlexStacking = artifacts.require("FlexStaking")
 const Token = artifacts.require("ERC20Token")
 const { assert } = require('chai')
 const truffleAssert = require('truffle-assertions')

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./Manageable.sol";
 import "./ILockedDeal.sol";
 
-contract FlexStacking is Manageable {
+contract FlexStaking is Manageable {
     event InvestInfo(
         uint256 id,
         uint256 lockedAmount,
