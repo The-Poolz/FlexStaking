@@ -8,17 +8,44 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Manageable is GovManager, ETHHelper, ERC20Helper, Pausable {
-    modifier greaterThanZero(uint256 n) {
-        require(n > 0, "The value should be greater than zero!");
+    event WithdrawnLeftover(uint256 amount, address receiver);
+
+    modifier notNullAddress(address _contract) {
+        require(_contract != address(0), "Invalid contract address!");
         _;
     }
 
     constructor() {}
 
+    mapping(uint256 => Pool) public PoolsMap;
+    mapping(uint256 => uint256) public Reserves;
+    uint256 TotalPools;
     address public LockedDealAddress;
 
-    //mapping(address => uint256) FeeMap;
-    //uint256 public Fee;
+    struct Pool {
+        address LockedToken;
+        address RewardToken;
+        uint256 RewardAmount;
+        uint256 StartTime;
+        uint256 FinishTime;
+        uint256 APR; // Annual percentage rate
+        uint256 MinDuration;
+        uint256 MaxDuration;
+        uint256 MinAmount;
+        uint256 MaxAmount;
+        uint256 EarlyWithdraw;
+    }
+
+    function WithdrawLeftOver(uint256 id) public onlyOwnerOrGov {
+        require(id < TotalPools, "Wrong id!");
+        require(
+            block.timestamp > PoolsMap[id].FinishTime,
+            "You should wait when pool is over"
+        );
+        TransferToken(PoolsMap[id].RewardToken, msg.sender, Reserves[id]);
+        emit WithdrawnLeftover(Reserves[id], msg.sender);
+        Reserves[id] = 0;
+    }
 
     function SetLockedDealAddress(address lockedDeal) public onlyOwnerOrGov {
         require(

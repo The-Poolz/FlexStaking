@@ -12,8 +12,8 @@ contract FlexStaking is Manageable {
         uint256 duration
     );
     event CretedPool(
+        uint256 Id,
         address LockedToken,
-        uint256 LockedAmount,
         address RewardToken,
         uint256 RewardAmount,
         uint256 StartTime,
@@ -26,27 +26,8 @@ contract FlexStaking is Manageable {
         uint256 earlyWithdraw
     );
 
-    mapping(uint256 => Pool) PoolsMap;
-    uint256 TotalPools;
-
-    struct Pool {
-        address LockedToken;
-        uint256 LockedAmount;
-        address RewardToken;
-        uint256 RewardAmount;
-        uint256 StartTime;
-        uint256 FinishTime;
-        uint256 APR;
-        uint256 MinDuration;
-        uint256 MaxDuration;
-        uint256 minAmount;
-        uint256 maxAmount;
-        uint256 earlyWithdraw;
-    }
-
     function CreateStakingPool(
         address lockedToken,
-        uint256 lockedAmount,
         address rewardToken,
         uint256 rewardAmount,
         uint256 startTime,
@@ -61,30 +42,24 @@ contract FlexStaking is Manageable {
         public
         onlyOwnerOrGov
         whenNotPaused
-        greaterThanZero(lockedAmount)
-    // "Stack Too Deep" error when using modifier
-    // greaterThanZero(startTime)
-    // greaterThanZero(finishTime)
-    // greaterThanZero(maxDuration)
-    // greaterThanZero(maxAmount)
-    // greaterThanZero(APR)
+        notNullAddress(lockedToken)
+        notNullAddress(rewardToken)
     {
         require(
-            APR > 0 && startTime > 0 && finishTime > 0 && maxDuration > 0 && maxAmount > 0,
+            APR > 0 &&
+                startTime > 0 &&
+                finishTime > 0 &&
+                maxDuration > 0 &&
+                maxAmount > 0 &&
+                rewardAmount > 0,
             "The value should be greater than zero!"
         );
         require(
-            LockedDealAddress != address(0),
-            "Invalid Locked Deal address!"
-        );
-        require(lockedToken != address(0), "Invalid token address!");
-        require(
-            maxDuration <= finishTime - startTime, 
-            "Invalid maximum duration time!" 
+            maxDuration <= finishTime - startTime,
+            "Invalid maximum duration time!"
         );
         PoolsMap[++TotalPools] = Pool(
             lockedToken,
-            lockedAmount,
             rewardToken,
             rewardAmount,
             startTime,
@@ -96,23 +71,15 @@ contract FlexStaking is Manageable {
             maxAmount,
             earlyWithdraw
         );
-        if (lockedToken != rewardToken) {
-            TransferInToken(
-                PoolsMap[TotalPools].RewardToken,
-                msg.sender,
-                rewardAmount
-            );
-        } else {
-            lockedAmount += rewardAmount;
-        }
         TransferInToken(
-            PoolsMap[TotalPools].LockedToken,
+            PoolsMap[TotalPools].RewardToken,
             msg.sender,
-            lockedAmount
+            rewardAmount
         );
+        Reserves[TotalPools] = rewardAmount;
         emit CretedPool(
+            TotalPools,
             lockedToken,
-            lockedAmount,
             rewardToken,
             rewardAmount,
             startTime,
@@ -130,34 +97,47 @@ contract FlexStaking is Manageable {
         uint256 id,
         uint256 amount,
         uint256 duration
-    ) public whenNotPaused {
+    ) public whenNotPaused notNullAddress(LockedDealAddress) {
         require(id <= TotalPools && id > 0, "wrong id!");
+        require(amount <= PoolsMap[id].MaxAmount && amount > 0, "wrong amount");
         require(
-            duration < PoolsMap[id].MaxDuration &&
-                duration > PoolsMap[id].MinDuration,
-            "Duration error!"
+            duration <= PoolsMap[id].MaxDuration &&
+                duration >= PoolsMap[id].MinDuration,
+            "wrong duration time!"
         );
         uint256 earn = ((amount * PoolsMap[id].APR) / 365 / 24 / 60 / 60) *
             duration;
+        require(Reserves[id] >= earn, "not enough tokens!");
         uint256 lockedAmount = amount;
         if (PoolsMap[id].RewardToken != PoolsMap[id].LockedToken) {
+            ApproveAllowanceERC20(
+                PoolsMap[id].RewardToken,
+                LockedDealAddress,
+                lockedAmount
+            );
             ILockedDeal(LockedDealAddress).CreateNewPool(
                 PoolsMap[id].RewardToken,
-                block.timestamp + duration - PoolsMap[id].earlyWithdraw, // The global variable 'now' is deprecated, 'block.timestamp' should be used instead
-                block.timestamp + duration,// https://docs.soliditylang.org/en/v0.8.13/070-breaking-changes.html?highlight=block.timestamp#how-to-update-your-code
+                block.timestamp + duration - PoolsMap[id].EarlyWithdraw,
+                block.timestamp + duration,
                 earn,
                 msg.sender
             );
         } else {
             lockedAmount += earn;
         }
+        ApproveAllowanceERC20(
+            PoolsMap[id].LockedToken,
+            LockedDealAddress,
+            lockedAmount
+        );
         ILockedDeal(LockedDealAddress).CreateNewPool(
             PoolsMap[id].LockedToken,
-            block.timestamp + duration - PoolsMap[id].earlyWithdraw,
+            block.timestamp + duration - PoolsMap[id].EarlyWithdraw,
             block.timestamp + duration,
             lockedAmount,
             msg.sender
         );
+        Reserves[id] -= earn;
         emit InvestInfo(id, amount, earn, duration);
     }
 }
