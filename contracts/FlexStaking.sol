@@ -6,36 +6,36 @@ import "./ILockedDeal.sol";
 
 contract FlexStaking is Manageable {
     event InvestInfo(
-        uint256 id,
-        uint256 lockedAmount,
-        uint256 earn,
-        uint256 duration
+        uint256 Id,
+        uint256 LockedAmount,
+        uint256 Earn,
+        uint256 Duration
     );
-    event CretedPool(
+    event CreatedPool(
         uint256 Id,
         address LockedToken,
         address RewardToken,
-        uint256 RewardAmount,
+        uint256 TokensAmount,
         uint256 StartTime,
         uint256 FinishTime,
         uint256 APR,
         uint256 MinDuration,
         uint256 MaxDuration,
-        uint256 minAmount,
-        uint256 maxAmount,
-        uint256 earlyWithdraw
+        uint256 MinAmount,
+        uint256 MaxAmount,
+        uint256 EarlyWithdraw
     );
 
     function CreateStakingPool(
-        address lockedToken,
-        address rewardToken,
-        uint256 rewardAmount,
-        uint256 startTime,
-        uint256 finishTime,
-        uint256 APR,
-        uint256 minDuration,
+        address lockedToken, // The token address that is locking
+        address rewardToken, // The reward token address
+        uint256 tokensAmount, // Total amount of reward tokens
+        uint256 startTime, // The time that can start using the staking (all time is Unix, sec)
+        uint256 finishTime, // The time that no longer can use the staking
+        uint256 APR, // Annual percentage rate
+        uint256 minDuration, // For how long the user can set up the staking
         uint256 maxDuration,
-        uint256 minAmount,
+        uint256 minAmount, // How much user can stake
         uint256 maxAmount,
         uint256 earlyWithdraw
     )
@@ -46,22 +46,22 @@ contract FlexStaking is Manageable {
         notNullAddress(rewardToken)
     {
         require(
-            APR > 0 &&
-                startTime > 0 &&
-                finishTime > 0 &&
-                maxDuration > 0 &&
-                maxAmount > 0 &&
-                rewardAmount > 0,
-            "The value should be greater than zero!"
+            APR > 0 && minDuration > 0 && minAmount > 0 && tokensAmount > 0,
+            "the value should be greater than zero!"
         );
         require(
-            maxDuration <= finishTime - startTime,
-            "Invalid maximum duration time!"
+            startTime >= block.timestamp - 60 && finishTime > startTime,
+            "invalid start time!"
+        );
+        require(maxAmount >= minAmount, "invalid maxium amount!");
+        require(
+            maxDuration <= finishTime - startTime && maxDuration >= minDuration,
+            "invalid maximum duration time!"
         );
         PoolsMap[++TotalPools] = Pool(
             lockedToken,
             rewardToken,
-            rewardAmount,
+            tokensAmount,
             startTime,
             finishTime,
             APR,
@@ -74,14 +74,14 @@ contract FlexStaking is Manageable {
         TransferInToken(
             PoolsMap[TotalPools].RewardToken,
             msg.sender,
-            rewardAmount
+            tokensAmount
         );
-        Reserves[TotalPools] = rewardAmount;
-        emit CretedPool(
+        Reserves[TotalPools] = tokensAmount;
+        emit CreatedPool(
             TotalPools,
             lockedToken,
             rewardToken,
-            rewardAmount,
+            tokensAmount,
             startTime,
             finishTime,
             APR,
@@ -96,10 +96,14 @@ contract FlexStaking is Manageable {
     function Stake(
         uint256 id,
         uint256 amount,
-        uint256 duration
+        uint256 duration // in seconds
     ) public whenNotPaused notNullAddress(LockedDealAddress) {
-        require(id <= TotalPools && id > 0, "wrong id!");
-        require(amount <= PoolsMap[id].MaxAmount && amount > 0, "wrong amount");
+        require(id > 0 && id <= TotalPools, "wrong id!");
+        require(
+            amount >= PoolsMap[id].MinAmount &&
+                amount <= PoolsMap[id].MaxAmount,
+            "wrong amount!"
+        );
         require(
             duration <= PoolsMap[id].MaxDuration &&
                 duration >= PoolsMap[id].MinDuration,
@@ -109,35 +113,33 @@ contract FlexStaking is Manageable {
             duration;
         require(Reserves[id] >= earn, "not enough tokens!");
         uint256 lockedAmount = amount;
-        if (PoolsMap[id].RewardToken != PoolsMap[id].LockedToken) {
-            ApproveAllowanceERC20(
-                PoolsMap[id].RewardToken,
-                LockedDealAddress,
-                lockedAmount
-            );
-            ILockedDeal(LockedDealAddress).CreateNewPool(
-                PoolsMap[id].RewardToken,
-                block.timestamp + duration - PoolsMap[id].EarlyWithdraw,
-                block.timestamp + duration,
-                earn,
-                msg.sender
-            );
+        address rewardToken = PoolsMap[id].RewardToken;
+        address lockedToken = PoolsMap[id].LockedToken;
+        uint256 earlyWithdraw = PoolsMap[id].EarlyWithdraw;
+        TransferInToken(lockedToken, msg.sender, amount);
+        if (rewardToken != lockedToken && earn > 0) {
+            LockToken(rewardToken, earn, duration, earlyWithdraw);
         } else {
             lockedAmount += earn;
         }
-        ApproveAllowanceERC20(
-            PoolsMap[id].LockedToken,
-            LockedDealAddress,
-            lockedAmount
-        );
-        ILockedDeal(LockedDealAddress).CreateNewPool(
-            PoolsMap[id].LockedToken,
-            block.timestamp + duration - PoolsMap[id].EarlyWithdraw,
-            block.timestamp + duration,
-            lockedAmount,
-            msg.sender
-        );
+        LockToken(lockedToken, lockedAmount, duration, earlyWithdraw);
         Reserves[id] -= earn;
         emit InvestInfo(id, amount, earn, duration);
+    }
+
+    function LockToken(
+        address token,
+        uint256 amount,
+        uint256 duration,
+        uint256 earlyWithdraw
+    ) internal {
+        ApproveAllowanceERC20(token, LockedDealAddress, amount);
+        ILockedDeal(LockedDealAddress).CreateNewPool(
+            token,
+            block.timestamp + duration - earlyWithdraw,
+            block.timestamp + duration,
+            amount,
+            msg.sender
+        );
     }
 }

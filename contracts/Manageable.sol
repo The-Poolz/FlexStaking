@@ -18,30 +18,31 @@ contract Manageable is GovManager, ETHHelper, ERC20Helper, Pausable {
     constructor() {}
 
     mapping(uint256 => Pool) public PoolsMap;
-    mapping(uint256 => uint256) public Reserves;
+    mapping(uint256 => uint256) public Reserves; // Reserve of tokens
     uint256 TotalPools;
     address public LockedDealAddress;
 
     struct Pool {
-        address LockedToken;
-        address RewardToken;
-        uint256 RewardAmount;
-        uint256 StartTime;
-        uint256 FinishTime;
+        address LockedToken; // The token address that is locking
+        address RewardToken; // The reward token address
+        uint256 TokensAmount; // Total amount of reward tokens
+        uint256 StartTime; // The time that can start using the staking
+        uint256 FinishTime; // The time that no longer can use the staking
         uint256 APR; // Annual percentage rate
-        uint256 MinDuration;
+        uint256 MinDuration; // For how long the user can set up the staking
         uint256 MaxDuration;
-        uint256 MinAmount;
+        uint256 MinAmount; // How much user can stake
         uint256 MaxAmount;
         uint256 EarlyWithdraw;
     }
 
     function WithdrawLeftOver(uint256 id) public onlyOwnerOrGov {
-        require(id < TotalPools, "Wrong id!");
+        require(id > 0 && id <= TotalPools, "wrong id!");
         require(
             block.timestamp > PoolsMap[id].FinishTime,
-            "You should wait when pool is over"
+            "should wait when pool is over!"
         );
+        require(Reserves[id] > 0, "all tokens distributed!");
         TransferToken(PoolsMap[id].RewardToken, msg.sender, Reserves[id]);
         emit WithdrawnLeftover(Reserves[id], msg.sender);
         Reserves[id] = 0;
@@ -50,7 +51,7 @@ contract Manageable is GovManager, ETHHelper, ERC20Helper, Pausable {
     function SetLockedDealAddress(address lockedDeal) public onlyOwnerOrGov {
         require(
             LockedDealAddress != lockedDeal,
-            "The address of the Locked Deal has already been changed!"
+            "the address of the Locked Deal has already been changed!"
         );
         LockedDealAddress = lockedDeal;
     }
