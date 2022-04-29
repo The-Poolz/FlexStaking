@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./Manageable.sol";
-import "./ILockedDeal.sol";
+import "poolz-helper-v2/contracts/ILockedDeal.sol";
 
 contract FlexStaking is Manageable {
     event InvestInfo(
