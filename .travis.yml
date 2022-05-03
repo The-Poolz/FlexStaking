@@ -4,4 +4,4 @@ language: node_js
 node_js: "14.18.2"
 install: npm i && npm i -g ganache truffle
 script: truffle run coverage
-after_script: bash <(curl -s https://codecov.io/bash) --token=8d5a624d-4f1c-48bb-b08c-f6502f8dbd2a
+after_script: bash <(curl -s https://codecov.io/bash)
