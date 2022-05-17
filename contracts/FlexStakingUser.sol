@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./FlexStakingPO.sol";
-import "poolz-helper-v2/contracts/ILockedDeal.sol";
+import "poolz-helper-v2/contracts/interfaces/ILockedDeal.sol";
 
 // FlexStakingUser - contains all user settings
 contract FlexStakingUser is FlexStakingPO {
