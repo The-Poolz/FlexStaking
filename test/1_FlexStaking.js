@@ -1,4 +1,4 @@
-const FlexStaking = artifacts.require("FlexStaking")
+const FlexStakingUser = artifacts.require("FlexStakingUser")
 const Token = artifacts.require("ERC20Token")
 const { assert } = require('chai')
 const truffleAssert = require('truffle-assertions')
@@ -19,7 +19,7 @@ contract("Testing Flex Staking", accounts => {
     let flexStaking
 
     before(async () => {
-        flexStaking = await FlexStaking.deployed()
+        flexStaking = await FlexStakingUser.deployed()
         date.setDate(date.getDate() + 365)   // add a year
         finishTime = Math.floor(date.getTime() / 1000) + 60
     })
@@ -87,11 +87,11 @@ contract("Testing Flex Staking", accounts => {
     it('should revert wrong id', async () => {
         let wrongID = '10000'
         await flexStaking.SetLockedDealAddress(lockedDeal)
-        await truffleAssert.reverts(flexStaking.WithdrawLeftOver(wrongID), 'wrong id!')
-        await truffleAssert.reverts(flexStaking.Stake(wrongID, minAmount, oneMonth), 'wrong id!')
+        await truffleAssert.reverts(flexStaking.WithdrawLeftOver(wrongID), 'invalid id!')
+        await truffleAssert.reverts(flexStaking.Stake(wrongID, minAmount, oneMonth), 'invalid id!')
         wrongID = '0'
-        await truffleAssert.reverts(flexStaking.WithdrawLeftOver(wrongID), 'wrong id!')
-        await truffleAssert.reverts(flexStaking.Stake(wrongID, minAmount, oneMonth), 'wrong id!')
+        await truffleAssert.reverts(flexStaking.WithdrawLeftOver(wrongID), 'invalid id!')
+        await truffleAssert.reverts(flexStaking.Stake(wrongID, minAmount, oneMonth), 'invalid id!')
     })
 
     it('should revert when not enough tokens', async () => {

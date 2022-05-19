@@ -1,17 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./Manageable.sol";
-import "./ILockedDeal.sol";
+import "./FlexStakingData.sol";
 
-contract FlexStaking is Manageable {
-    event InvestInfo(
-        uint256 Id,
-        uint256 LockedAmount,
-        uint256 Earn,
-        uint256 Duration
-    );
+// FlexStakingPO - contains all Project Owner settings
+contract FlexStakingPO is FlexStakingData {
+    event WithdrawnLeftover(uint256 Id, address Receiver, uint256 Amount);
+
     event CreatedPool(
+        address Owner,
         uint256 Id,
         address LockedToken,
         address RewardToken,
@@ -40,7 +37,6 @@ contract FlexStaking is Manageable {
         uint256 earlyWithdraw
     )
         public
-        onlyOwnerOrGov
         whenNotPaused
         notNullAddress(lockedToken)
         notNullAddress(rewardToken)
@@ -59,6 +55,7 @@ contract FlexStaking is Manageable {
             "invalid maximum duration time!"
         );
         PoolsMap[++TotalPools] = Pool(
+            msg.sender,
             lockedToken,
             rewardToken,
             tokensAmount,
@@ -78,6 +75,7 @@ contract FlexStaking is Manageable {
         );
         Reserves[TotalPools] = tokensAmount;
         emit CreatedPool(
+            msg.sender,
             TotalPools,
             lockedToken,
             rewardToken,
@@ -93,53 +91,16 @@ contract FlexStaking is Manageable {
         );
     }
 
-    function Stake(
-        uint256 id,
-        uint256 amount,
-        uint256 duration // in seconds
-    ) public whenNotPaused notNullAddress(LockedDealAddress) {
-        require(id > 0 && id <= TotalPools, "wrong id!");
+    function WithdrawLeftOver(uint256 id) public {
+        require(id > 0 && id <= TotalPools, "invalid id!");
+        require(PoolsMap[id].Owner == msg.sender, "invalid owner address!");
         require(
-            amount >= PoolsMap[id].MinAmount &&
-                amount <= PoolsMap[id].MaxAmount,
-            "wrong amount!"
+            block.timestamp > PoolsMap[id].FinishTime,
+            "should wait when pool is over!"
         );
-        require(
-            duration <= PoolsMap[id].MaxDuration &&
-                duration >= PoolsMap[id].MinDuration,
-            "wrong duration time!"
-        );
-        uint256 earn = ((amount * PoolsMap[id].APR) / 365 / 24 / 60 / 60) *
-            duration;
-        require(Reserves[id] >= earn, "not enough tokens!");
-        uint256 lockedAmount = amount;
-        address rewardToken = PoolsMap[id].RewardToken;
-        address lockedToken = PoolsMap[id].LockedToken;
-        uint256 earlyWithdraw = PoolsMap[id].EarlyWithdraw;
-        TransferInToken(lockedToken, msg.sender, amount);
-        if (rewardToken != lockedToken && earn > 0) {
-            LockToken(rewardToken, earn, duration, earlyWithdraw);
-        } else {
-            lockedAmount += earn;
-        }
-        LockToken(lockedToken, lockedAmount, duration, earlyWithdraw);
-        Reserves[id] -= earn;
-        emit InvestInfo(id, amount, earn, duration);
-    }
-
-    function LockToken(
-        address token,
-        uint256 amount,
-        uint256 duration,
-        uint256 earlyWithdraw
-    ) internal {
-        ApproveAllowanceERC20(token, LockedDealAddress, amount);
-        ILockedDeal(LockedDealAddress).CreateNewPool(
-            token,
-            block.timestamp + duration - earlyWithdraw,
-            block.timestamp + duration,
-            amount,
-            msg.sender
-        );
+        require(Reserves[id] > 0, "all tokens distributed!");
+        TransferToken(PoolsMap[id].RewardToken, msg.sender, Reserves[id]);
+        emit WithdrawnLeftover(id, msg.sender, Reserves[id]);
+        Reserves[id] = 0;
     }
 }
