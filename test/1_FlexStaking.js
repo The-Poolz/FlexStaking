@@ -41,6 +41,14 @@ contract("Testing Flex Staking", accounts => {
 
     it('should create Pool with the same reward token', async () => {
         await lockedToken.approve(flexStaking.address, amount, { from: projectOwner })
+        console.log("amount: " + amount);
+        console.log("startTime: " + startTime);
+        console.log("finishTime: " + finishTime);
+        console.log("APR: " + APR);
+        console.log("oneMonth: " + oneMonth);
+        console.log("twoMonths: " + twoMonths);
+        console.log("minAmount: " + minAmount);
+        console.log("maxAmount: " + maxAmount);
         const result = await flexStaking.CreateStakingPool(lockedToken.address, lockedToken.address, amount, startTime, finishTime, APR, oneMonth, twoMonths, minAmount, maxAmount, '0')
         poolId = result.logs[result.logs.length - 1].args.Id.toString()
     })

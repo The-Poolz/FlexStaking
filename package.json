@@ -20,5 +20,6 @@
     "poolz-helper-v2": "^2.0.3",
     "truffle-plugin-verify": "^0.5.7"
   },
-  "name": "flex-staking"
+  "name": "poolz-flex-staking",
+  "version": "1.0.0"
 }
