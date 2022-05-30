@@ -74,10 +74,31 @@ contract("Testing Flex Staking", accounts => {
             'invalid start time!')
     })
 
+    it('should revert when pool is not started or is finished', async () => {
+        const date = new Date()
+        let startTime = Math.floor(date.getTime() / 1000) + 60
+        date.setDate(date.getDate() + 365)   // add a year
+        let finishTime = Math.floor(date.getTime() / 1000) + 60
+        flexStaking.SetLockedDealAddress(lockedDeal, { from: projectOwner })
+        await lockedToken.approve(flexStaking.address, amount, { from: projectOwner })
+        const result1 = await flexStaking.CreateStakingPool(lockedToken.address, lockedToken.address, amount, startTime, finishTime, APR, oneMonth, twoMonths, minAmount, maxAmount, '0')
+        const poolId1 = result1.logs[result1.logs.length - 1].args.Id.toString()
+        await truffleAssert.reverts(flexStaking.Stake(poolId1, minAmount, oneMonth), 'Pool is not started or is finished!')
+        startTime = Math.floor(date.getTime() / 1000) + 60
+        date.setDate(date.getDate() + 365)   // add a year
+        finishTime = Math.floor(date.getTime() / 1000) + 60
+        await lockedToken.approve(flexStaking.address, amount, { from: projectOwner })
+        const result2 = await flexStaking.CreateStakingPool(lockedToken.address, lockedToken.address, amount, startTime, finishTime, APR, oneMonth, twoMonths, minAmount, maxAmount, '0')
+        const poolId2 = result2.logs[result2.logs.length - 1].args.Id.toString()
+        await timeMachine.advanceBlockAndSetTime(finishTime)
+        await truffleAssert.reverts(flexStaking.Stake(poolId2, minAmount, oneMonth), 'Pool is not started or is finished!')
+    })
+
     it('should withdraw leftover tokens', async () => {
         const date = new Date()
         date.setDate(date.getDate() + 366)
         const future = Math.floor(date.getTime() / 1000) + 60
+        await timeMachine.advanceBlockAndSetTime(startTime)
         await truffleAssert.reverts(flexStaking.WithdrawLeftOver(poolId), 'should wait when pool is over!')
         await timeMachine.advanceBlockAndSetTime(future)
         await flexStaking.WithdrawLeftOver(poolId)
@@ -86,7 +107,6 @@ contract("Testing Flex Staking", accounts => {
 
     it('should revert wrong id', async () => {
         let wrongID = '10000'
-        await flexStaking.SetLockedDealAddress(lockedDeal)
         await truffleAssert.reverts(flexStaking.WithdrawLeftOver(wrongID), 'invalid id!')
         await truffleAssert.reverts(flexStaking.Stake(wrongID, minAmount, oneMonth), 'invalid id!')
         wrongID = '0'
