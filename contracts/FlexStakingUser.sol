@@ -33,7 +33,7 @@ contract FlexStakingUser is FlexStakingPO {
         uint256 earn = ((amount * PoolsMap[id].APR) / 365 / 24 / 60 / 60) *
             duration;
         require(Reserves[id] >= earn, "not enough tokens!");
-        require(PoolsMap[id].StartTime <= block.timestamp && PoolsMap[id].FinishTime >= block.timestamp, 'Pool is not started or is finished!');
+        require(PoolsMap[id].StartTime <= block.timestamp && PoolsMap[id].FinishTime > block.timestamp, 'Pool is not started or is finished!');
         uint256 lockedAmount = amount;
         address rewardToken = PoolsMap[id].RewardToken;
         address lockedToken = PoolsMap[id].LockedToken;
