@@ -75,23 +75,19 @@ contract("Testing Flex Staking", accounts => {
     })
 
     it('should revert when pool is not started or is finished', async () => {
-        const date = new Date()
-        let startTime = Math.floor(date.getTime() / 1000) + 60
-        date.setDate(date.getDate() + 365)   // add a year
-        let finishTime = Math.floor(date.getTime() / 1000) + 60
         flexStaking.SetLockedDealAddress(lockedDeal, { from: projectOwner })
         await lockedToken.approve(flexStaking.address, amount, { from: projectOwner })
         const result1 = await flexStaking.CreateStakingPool(lockedToken.address, lockedToken.address, amount, startTime, finishTime, APR, oneMonth, twoMonths, minAmount, maxAmount, '0')
-        const poolId1 = result1.logs[result1.logs.length - 1].args.Id.toString()
-        await truffleAssert.reverts(flexStaking.Stake(poolId1, minAmount, oneMonth), 'Pool is not started or is finished!')
-        startTime = Math.floor(date.getTime() / 1000) + 60
-        date.setDate(date.getDate() + 365)   // add a year
-        finishTime = Math.floor(date.getTime() / 1000) + 60
-        await lockedToken.approve(flexStaking.address, amount, { from: projectOwner })
-        const result2 = await flexStaking.CreateStakingPool(lockedToken.address, lockedToken.address, amount, startTime, finishTime, APR, oneMonth, twoMonths, minAmount, maxAmount, '0')
-        const poolId2 = result2.logs[result2.logs.length - 1].args.Id.toString()
-        await timeMachine.advanceBlockAndSetTime(finishTime)
-        await truffleAssert.reverts(flexStaking.Stake(poolId2, minAmount, oneMonth), 'Pool is not started or is finished!')
+        poolId = result1.logs[result1.logs.length - 1].args.Id.toString()
+        const time = new Date()
+        time.setDate(time.getDate() - 1)
+        const past = Math.floor(time.getTime() / 1000) + 60
+        await timeMachine.advanceBlockAndSetTime(past)
+        await truffleAssert.reverts(flexStaking.Stake(poolId, minAmount, oneMonth), 'Pool is not started or is finished!')
+        date.setDate(date.getDate() + 366)   // add a year
+        const future = Math.floor(date.getTime() / 1000) + 60
+        await timeMachine.advanceBlockAndSetTime(future)
+        await truffleAssert.reverts(flexStaking.Stake(poolId, minAmount, oneMonth), 'Pool is not started or is finished!')
     })
 
     it('should withdraw leftover tokens', async () => {
