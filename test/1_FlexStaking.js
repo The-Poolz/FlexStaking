@@ -13,15 +13,21 @@ contract("Testing Flex Staking", accounts => {
     const lockedDeal = accounts[2]
     const oneMonth = 60 * 60 * 24 * 30 // seconds
     const twoMonths = 60 * 60 * 24 * 60
-    const date = new Date()
-    const startTime = Math.floor(date.getTime() / 1000) + 60
+    let date
+    let startTime
     let finishTime
     let flexStaking
 
     before(async () => {
+        date = new Date()
         flexStaking = await FlexStakingUser.deployed()
+        startTime = Math.floor(date.getTime() / 1000) + 60
         date.setDate(date.getDate() + 365)   // add a year
         finishTime = Math.floor(date.getTime() / 1000) + 60
+    })
+
+    beforeEach(async () => {
+        date = new Date()
     })
 
     it('only the owner has control rights', async () => {
@@ -79,9 +85,8 @@ contract("Testing Flex Staking", accounts => {
         await lockedToken.approve(flexStaking.address, amount, { from: projectOwner })
         const result1 = await flexStaking.CreateStakingPool(lockedToken.address, lockedToken.address, amount, startTime, finishTime, APR, oneMonth, twoMonths, minAmount, maxAmount, '0')
         poolId = result1.logs[result1.logs.length - 1].args.Id.toString()
-        const time = new Date()
-        time.setDate(time.getDate() - 1)
-        const past = Math.floor(time.getTime() / 1000) + 60
+        date.setDate(date.getDate() - 1)
+        const past = Math.floor(date.getTime() / 1000) + 60
         await timeMachine.advanceBlockAndSetTime(past)
         await truffleAssert.reverts(flexStaking.Stake(poolId, minAmount, oneMonth), 'Pool is not started or is finished!')
         date.setDate(date.getDate() + 366)   // add a year
@@ -91,7 +96,6 @@ contract("Testing Flex Staking", accounts => {
     })
 
     it('should withdraw leftover tokens', async () => {
-        const date = new Date()
         date.setDate(date.getDate() + 366)
         const future = Math.floor(date.getTime() / 1000) + 60
         await timeMachine.advanceBlockAndSetTime(startTime)
@@ -124,7 +128,6 @@ contract("Testing Flex Staking", accounts => {
     })
 
     it('should revert invalid start time', async () => {
-        const date = new Date()
         date.setDate(date.getDate() - 400)
         const past = Math.floor(date.getTime() / 1000) + 60
         await truffleAssert.reverts(
