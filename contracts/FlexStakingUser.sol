@@ -63,7 +63,7 @@ contract FlexStakingUser is FlexStakingPO {
         uint256 earlyWithdraw
     ) internal {
         ApproveAllowanceERC20(token, LockedDealAddress, amount);
-        ILockedDeal(LockedDealAddress).CreateNewPool(
+        ILockedDealV2(LockedDealAddress).CreateNewPool(
             token,
             block.timestamp + duration - earlyWithdraw,
             block.timestamp + duration,
