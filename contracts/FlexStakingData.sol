@@ -6,7 +6,7 @@ import "./FlexStakingManageable.sol";
 // FlexStakingData - stores all variables for the user and project owner
 contract FlexStakingData is FlexStakingManageable {
     mapping(uint256 => Pool) public PoolsMap;
-    uint256 TotalPools;
+    uint256 public TotalPools;
     mapping(uint256 => uint256) public Reserves; // Reserve of tokens
 
     struct Pool {

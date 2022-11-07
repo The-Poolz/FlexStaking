@@ -14,8 +14,6 @@ contract FlexStakingManageable is GovManager, ETHHelper, ERC20Helper, Pausable {
         _;
     }
 
-    constructor() {}
-
     address public LockedDealAddress;
 
     function SetLockedDealAddress(address lockedDeal) public onlyOwnerOrGov {
